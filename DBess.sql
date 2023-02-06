@@ -16,6 +16,7 @@ drop table TBL_Spenglerei cascade constraints;
 drop table TBL_Auftragsliste cascade constraints;
 drop table TBL_Kundenbetreuung cascade constraints;
 drop table TBL_Module_Kunde cascade constraints;
+drop table TBL_Kundenmanagement cascade constraints;
 
 CREATE TABLE TBL_Kundendaten (
   KundenID INT Not null PRIMARY KEY,
@@ -53,7 +54,6 @@ CREATE TABLE TBL_Zahlungseingaenge (
 CREATE TABLE TBL_Beschwerde (
   BeschwerdeID INT PRIMARY KEY,
   KundeID INT REFERENCES TBL_Kundendaten(KundenID),
-  EintragsID INT,
   LagerModulID INT,
   Beschreibung VARCHAR(255),
   Datum DATE,
@@ -66,11 +66,17 @@ CREATE TABLE TBL_Beschwerde (
 CREATE TABLE TBL_Kundenbetreuung (
   EintragsID INT PRIMARY KEY,
   MitarbeiterID INT ,
-  KundenID REFERENCES TBL_Kundendaten(KundenID),
   Datum DATE,
   ServiceType VARCHAR(255),
   Beschreibung VARCHAR(255)
 );
+
+CREATE TABLE TBL_Kundenmanagement (
+    IDs INT PRIMARY KEY,
+    BeschwerdeID INT REFERENCES TBL_Beschwerde (BeschwerdeID),
+    EintragsID INT REFERENCES TBL_Kundenbetreuung (EintragsID)
+    );
+
 
 
 CREATE TABLE TBL_Mitarbeiter (
@@ -249,28 +255,35 @@ VALUES
 (5,5, '03.12.2022', 500.5, 'Überweisung', 123456789, 1001);
 
 -----
-INSERT INTO TBL_Beschwerde (BeschwerdeID, KundeID,EintragsID, LagerModulID, Beschreibung, Datum, Status, Geloest)
+INSERT INTO TBL_Beschwerde (BeschwerdeID, KundeID, LagerModulID, Beschreibung, Datum, Status, Geloest)
 VALUES 
-(1,1,1,1, 'Licht defekt', '03.12.2022', 'Offen', 0);
-INSERT INTO TBL_Beschwerde (BeschwerdeID, KundeID,EintragsID, LagerModulID, Beschreibung, Datum, Status, Geloest)
+(1,1,1, 'Licht defekt', '03.12.2022', 'Offen', 0);
+INSERT INTO TBL_Beschwerde (BeschwerdeID, KundeID, LagerModulID, Beschreibung, Datum, Status, Geloest)
 VALUES 
-(2,1,2,2, 'Schloss defekt', '03.12.2021', 'geschlossen', 0);
-INSERT INTO TBL_Beschwerde (BeschwerdeID, KundeID,EintragsID, LagerModulID, Beschreibung, Datum, Status, Geloest)
+(2,1,2, 'Schloss defekt', '03.12.2021', 'geschlossen', 0);
+INSERT INTO TBL_Beschwerde (BeschwerdeID, KundeID, LagerModulID, Beschreibung, Datum, Status, Geloest)
 VALUES 
-(3,3,3,3, 'Tuere quitscht', '03.12.2022', 'Offen', 0);
-INSERT INTO TBL_Beschwerde (BeschwerdeID, KundeID,EintragsID, LagerModulID, Beschreibung, Datum, Status, Geloest)
+(3,3,3, 'Tuere quitscht', '03.12.2022', 'Offen', 0);
+INSERT INTO TBL_Beschwerde (BeschwerdeID, KundeID, LagerModulID, Beschreibung, Datum, Status, Geloest)
 VALUES 
-(4,4,4,4, 'Rechnungsbetrag falsch', '03.12.2022', 'Offen', 0);
-INSERT INTO TBL_Beschwerde (BeschwerdeID, KundeID,EintragsID, LagerModulID, Beschreibung, Datum, Status, Geloest)
+(4,4,4, 'Rechnungsbetrag falsch', '03.12.2022', 'Offen', 0);
+INSERT INTO TBL_Beschwerde (BeschwerdeID, KundeID, LagerModulID, Beschreibung, Datum, Status, Geloest)
 VALUES 
-(5,5,5,5, 'Verschmutzung im Gang', '03.12.2022', 'Offen', 0);
+(5,5,5, 'Verschmutzung im Gang', '03.12.2022', 'Offen', 0);
 
 -----
 
-INSERT INTO TBL_Kundenbetreuung (EintragsID,MitarbeiterID,KundenID, Datum, ServiceType, Beschreibung)
+INSERT INTO TBL_Kundenbetreuung (EintragsID,MitarbeiterID, Datum, ServiceType, Beschreibung)
 VALUES
-  (2,1,1, '13.12.2021', 'Reparatur', 'Reparatur des defekten Teils');
+  (2,1, '13.12.2021', 'Reparatur', 'Reparatur des defekten Teils');
 -----
+
+INSERT INTO TBL_Kundenmanagement (IDs,EintragsID,BeschwerdeID)
+VALUES
+  (1,2, 1);
+  
+---
+
 
 INSERT INTO TBL_Mitarbeiter (MitarbeiterID, Abteilung, Gehalt, Namen, Adresse, Geburtsdatum)
 VALUES
@@ -386,6 +399,22 @@ VALUES
 INSERT INTO TBL_Lagerobjekt (LagerobjektID, EigentuemerID, MietvertragID,Regionskuerzel, Anz_Module,  Standort)
 VALUES
 (1001, 1, 1,'A321', 20, '5580 Moertelsdorf');
+
+INSERT INTO TBL_Lagerobjekt (LagerobjektID, EigentuemerID, MietvertragID,Regionskuerzel, Anz_Module,  Standort)
+VALUES
+(1002, 2, 1,'A224', 20, 'Beispeiladresse-Oststm');
+
+INSERT INTO TBL_Lagerobjekt (LagerobjektID, EigentuemerID, MietvertragID,Regionskuerzel, Anz_Module,  Standort)
+VALUES
+(1003, 1, 1,'A321', 20, '5580 Moertelsdorf');
+
+INSERT INTO TBL_Lagerobjekt (LagerobjektID, EigentuemerID, MietvertragID,Regionskuerzel, Anz_Module,  Standort)
+VALUES
+(1004, 3, 1,'A111', 20, 'Beispeiladresse-Burgenland');
+
+INSERT INTO TBL_Lagerobjekt (LagerobjektID, EigentuemerID, MietvertragID,Regionskuerzel, Anz_Module,  Standort)
+VALUES
+(1005, 1, 1,'A321', 20, '5580 Moertelsdorf2');
 ----
 
 
@@ -402,15 +431,15 @@ VALUES
 
 
 
-
+Insert into TBL_Auftragsliste (AuftragsID,SpenglerID,LagerModulID,MitarbeiterID,Datum,Kosten,Garantie,Ablage_Auftragsdokument,Status)
+values
+(1,1,1,1,'01.11.2021',2500,3,'C:/ablage','erledigt');
+  
 
 ALTER TABLE TBL_Kundenbetreuung
 ADD CONSTRAINT FK_MitarbeiterID_TBL_Mitarbeiter
 FOREIGN KEY (MitarbeiterID) REFERENCES TBL_Mitarbeiter(MitarbeiterID);
 
-ALTER TABLE TBL_Beschwerde
-ADD CONSTRAINT FK_EintragID_TBL_Kundenbetreuung
-FOREIGN KEY (EintragsID) REFERENCES TBL_Kundenbetreuung(EintragsID);
 
 ALTER TABLE TBL_Beschwerde
 ADD CONSTRAINT FK_LagerModulID_TBL_LagerModul
@@ -428,29 +457,10 @@ FOREIGN KEY (LagerobjektID) REFERENCES TBL_Lagerobjekt (LagerobjektID);
 ALTER TABLE TBL_Zugangsprotokoll
 ADD CONSTRAINT FK_NFCID_TBL_Nfc
 FOREIGN KEY (NFCKeyID) REFERENCES TBL_NFCKey (NFCKeyID);
--- Noch nicht fertig
--- CONSTRAINTs
 
-ALTER TABLE TBL_InfoMietvertrag
-ADD CONSTRAINT FK_EigentuemerID_InfoMietvertrag
-FOREIGN KEY (EigentuemerID) REFERENCES TBL_Eigentuemer(EigentuemerID);
 
-ALTER TABLE TBL_InfoMietvertrag
-ADD CONSTRAINT FK_LagerModulID_InfoMietvertrag
-FOREIGN KEY (LagerModulID) REFERENCES TBL_LagerModule(LagerModulID);
 
-ALTER TABLE TBL_NFCKey
-ADD CONSTRAINT FK_KundenID_NFCKey
-FOREIGN KEY (KundenID) REFERENCES TBL_Kunden(KundenID);
 
-ALTER TABLE TBL_NFCKey
-ADD CONSTRAINT FK_MietvertragsID_NFCKey
-FOREIGN KEY (MietvertragsID) REFERENCES TBL_InfoMietvertrag(MietvertragID);
+-----
 
-ALTER TABLE TBL_Spenglerei
-ADD CONSTRAINT FK_LagerobjektID_Spenglerei
-FOREIGN KEY (LagerobjektID) REFERENCES TBL_LagerModule(LagerModulID);
-
-ALTER TABLE TBL_Inventarliste
-ADD CONSTRAINT FK_LagerModulID_Inventarliste
-FOREIGN KEY (LagerModulID) REFERENCES TBL_LagerModule(LagerModulID);
+select * from TBL_Zugangsprotokoll;
