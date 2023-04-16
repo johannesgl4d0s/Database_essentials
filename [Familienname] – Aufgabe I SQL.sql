@@ -227,7 +227,7 @@ begin
    SELECT UserId, BikeId,DateOfPurchase,FrameId
    FROM INSERTED;
 End
-
+DISABLE TRIGGER TG_CopyToBikeEvaluation ON UserHasBike; 
 
 	--12 New Bike (2P)
 	--Erstellen Sie eine Procedure AddNewBike, welche verwendet werden kann um ein neues Bike und deren konkrete Klasse in der Datenbank anzulegen. Die Procedure soll als Rückgabewert die BikeId des neu angelegten Bikes enthalten. Achten Sie dabei auf Fehlerbehandlung, falls die Procedure nicht richtig aufgerufen wird. Dokumentieren Sie zusätzlich zum Code der Procedure noch ein paar Beispielaufrufe.
@@ -324,19 +324,88 @@ from Tour
 	--14 BikeHistory (3P)
 	--Erstellen Sie eine Tabelle BikeHistory (UserId, StartTime, EndTime, BikeCounter), welche eine historische Übersicht über die Anzahl der besessenen Bikes pro User liefert. Nachdem Sie die Tabelle erstellt haben, befüllen Sie diese mittels eines Cursors mit den Informationen aus UserHasBike. Ziel ist es dabei, dass in der Tabelle ersichtlich ist, in welchem Zeitraum welcher Benutzer wie viele Bikes besessen hat. Fügen Sie dazu den benötigten Code in den bereitgestellten BEGIN-END-Block nach „-- Code einfügen“ ein.
 	--Anmerkung: Muss zu Übungszwecken mit einem Cursor durchgeführt werden.
-Select [User].UserId, DateOfPurchase
-from [User]
-join UserHasBike
-on [User].UserId = UserHasBike.UserId
-where [User].UserId = 1 --order by [User].UserId
-	
-	BEGIN
-	--	-- Code einfügen
-	END
+
+Drop TABLE BikeHistory;
+CREATE TABLE BikeHistory
+(
+	UserId INT,
+	Starttime Datetime,
+	Endtime datetime,
+	Bikecounter int
+);
+
+BEGIN
+--simple cursor in sql server 
+Declare @endt datetime, @start datetime, @counter int = 0, @id int
+
+DECLARE insert_cursor CURSOR FOR 
+Select UserId, DateOfPurchase, ISNULL(LEAD(DateOfPurchase,1,Null)OVER(PARTITION BY UserId ORDER BY DateOfPurchase), NULL) [Endtime], ROW_NUMBER() OVER (PARTITION BY UserId ORDER BY DateOfPurchase) as [counter]
+from UserHasBike
+--for update of Test2.ID, Test2.Termin
+
+OPEN insert_cursor
+FETCH NEXT FROM insert_cursor into @id, @start, @endt, @counter
+WHILE @@FETCH_STATUS=0
+BEGIN
+-- do complex operation here
+Insert into BikeHistory
+SELECT @id, @start, @endt, @counter
+
+	-- get next available row into variables
+FETCH NEXT FROM insert_cursor into @id, @start, @endt, @counter
+END
+CLOSE  insert_cursor;
+DEALLOCATE  insert_cursor;
+END
+
+select *
+from BikeHistory
+order by UserId
+
+
+
+Select UserId, DateOfPurchase, ISNULL(LEAD(DateOfPurchase,1,Null)OVER(PARTITION BY UserId ORDER BY DateOfPurchase), NULL) [Endtime], ROW_NUMBER() OVER (PARTITION BY UserId ORDER BY DateOfPurchase) as [counter]
+from UserHasBike
+
 
 	--15 Keep the History alive (3P)
 	--Erstellen Sie einen Trigger TG_UpdateBikeHistory, welcher sicherstellt, dass wenn Datensätze in der Tabelle UserHasBike gelöscht oder eingefügt werden, die korrekten Informationen in der Tabelle BikeHistory nachgezogen werden. Testen Sie den Trigger mit mindestens drei INSERTS und einem DELETE in die Tabelle UserHasBike. Achten Sie dabei darauf, dass der Trigger sinnvoll eingesetzt wird.
+CREATE or alter TRIGGER  TG_UpdateBikeHistory
+ON UserHasBike
+After Insert, Delete
+AS
+begin
+if exists (select * from inserted)
+begin
 
+   delete from BikeHistory
+   where BikeHistory.UserId in (SELECT UserId FROM inserted)
+   INSERT INTO BikeHistory
+   SELECT UserHasBike.UserId, UserHasBike.DateOfPurchase, ISNULL(LEAD(UserHasBike.DateOfPurchase,1,Null)OVER(PARTITION BY UserHasBike.UserId ORDER BY UserHasBike.DateOfPurchase), NULL) [Endtime], ROW_NUMBER() OVER (PARTITION BY UserHasBike.UserId ORDER BY UserHasBike.DateOfPurchase) as [counter]
+   FROM UserHasBike 
+   join INSERTED
+   on UserHasBike.UserId = INSERTED.UserId;
+end;
+if exists (select * from deleted)
+begin
+delete from BikeHistory
+where BikeHistory.UserId in (SELECT UserId FROM deleted) and  BikeHistory.Starttime in (Select DateOfPurchase FROM deleted)
+end
+
+End;
+
+INSERT INTO UserHasBike(UserId,BikeId, DateOfPurchase,FrameId)
+VALUES (995,108,'2024-02-01 00:00:00.000', '063707060-8');
+
+INSERT INTO UserHasBike(UserId,BikeId, DateOfPurchase,FrameId)
+VALUES (103,108,'2024-02-01 00:00:00.000', '063707060-8');
+
+INSERT INTO UserHasBike(UserId,BikeId, DateOfPurchase,FrameId)
+VALUES (106,108,'2024-02-01 00:00:00.000', '063707060-8');
+
+delete from UserHasBike
+where UserId = 995 and BikeId = 108
+ 
 	--16 The last one (3P)
 	--Erstellen Sie eine Table-Function TimeDistanceStatistics, welche eine Flag übernimmt und abhängig von dieser das gewünschte Ergebnis liefert. Die Flag beginnt mit einem Qualifier, welcher angibt, wie die Daten gefiltert werden, gefolgt von einer Id. Mögliche Qualifier sind ein t für das Filtern anhand der Tour, oder ein u für das Filtern nach dem User.
 	--Qualifier und ID wird kombiniert in einem VARCHAR übergeben. Abhängig vom Qualifier wird eine Auswertung erstellt welcher aufschlüsselt in welchem 
@@ -346,3 +415,112 @@ where [User].UserId = 1 --order by [User].UserId
 	--Beispielparameter
 	--'t2' => Steht für die Tour mit der TourId 2
 	--'u2' => Steht für den User mit der UserId 2
+
+Select *
+from Tour
+join Activity
+on Tour.TourId =  Activity.ActivityId
+where Tour.TourId = 2
+
+
+CREATE or alter FUNCTION TimeDistanceStatistics
+(
+@flag VARCHAR(2)
+)
+RETURNS TABLE
+AS
+RETURN
+
+SELECT 
+CASE 
+	WHEN LEFT(@flag, 1) = 't' THEN 'Tour'
+	WHEN LEFT(@flag, 1) = 'u' THEN 'User'
+END [Type],
+	MONTH(StartTime) Monat, DATENAME(MONTH,StartTime) MonateName, YEAR(StartTime) Jahr,
+	Sum([Route].STLength()) RiddenD,
+	Count(Activity.ActivityId) ActivityCounter,
+	Count([State].StateId) StateCounter
+	from Participation
+	inner join Activity
+	on Participation.ActivityId = Activity.ActivityId
+	inner join Tour
+	on Activity.TourId = Tour.TourId
+	join [User]
+	on Participation.UserId = [User].UserId
+	join City
+	on [User].CityId = City.CityId
+	join [State]
+	on City.StateId = [State].StateId
+	where
+        LEFT(@flag, 1) = 't' AND Activity.TourId = RIGHT(@flag, 1) OR
+        LEFT(@flag, 1) = 'u' AND [User].UserID = RIGHT(@flag, 1)
+	group by YEAR(StartTime), MONTH(StartTime), DATENAME(MONTH,StartTime)
+		
+
+
+
+select * from TimeDistanceStatistics('t3')
+
+select * from TimeDistanceStatistics('u3')
+
+Select MONTH(StartTime) Monat, DATENAME(MONTH,StartTime) MonateName, YEAR(StartTime) Jahr,
+Sum([Route].STLength()) RiddenD,
+Count(Activity.ActivityId) ActivityCounter,
+Sum([State].StateId) StateCounter
+from Participation
+inner join Activity
+on Participation.ActivityId = Activity.ActivityId
+inner join Tour
+on Activity.TourId = Tour.TourId
+join [User]
+on Participation.UserId = [User].UserId
+join City
+on [User].CityId = City.CityId
+join [State]
+on City.StateId = [State].StateId
+where Activity.TourId = 3
+group by MONTH(StartTime), DATENAME(MONTH,StartTime), YEAR(StartTime)
+order by YEAR(StartTime)
+
+Select MONTH(StartTime) Monat, DATENAME(MONTH,StartTime) MonateName, YEAR(StartTime) Jahr,
+Sum([Route].STLength()) RiddenD,
+Count(Activity.ActivityId) ActivityCounter,
+Sum([State].StateId) StateCounter
+from Participation
+inner join Activity
+on Participation.ActivityId = Activity.ActivityId
+inner join Tour
+on Activity.TourId = Tour.TourId
+join [User]
+on Participation.UserId = [User].UserId
+join City
+on [User].CityId = City.CityId
+join [State]
+on City.StateId = [State].StateId
+where [User].UserId = 3
+group by MONTH(StartTime), DATENAME(MONTH,StartTime), YEAR(StartTime)
+order by YEAR(StartTime)
+
+Select MONTH(StartTime) Monat, DATENAME(MONTH,StartTime) MonateName, YEAR(StartTime) Jahr, Activity.ActivityId, [State].StateId
+from Participation
+inner join Activity
+on Participation.ActivityId = Activity.ActivityId
+inner join Tour
+on Activity.TourId = Tour.TourId
+join [User]
+on Participation.UserId = [User].UserId
+join City
+on [User].CityId = City.CityId
+join [State]
+on City.StateId = [State].StateId
+where [User].UserId = 3
+order by YEAR(StartTime),MONTH(StartTime)
+
+
+declare @flag Varchar(2)
+
+set @flag = 'u2'
+select right(@flag, 2)
+if 2 in (select left(@flag, 2))
+print 'Yes'
+
